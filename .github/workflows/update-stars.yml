@@ -17,7 +17,7 @@ jobs:
           node-version: 18
 
       - name: Install dependencies
-        run: npm install node-fetch
+  run: npm install node-fetch cheerio
 
       - name: Run fetch script
         run: node fetch-stars.js
