@@ -5,19 +5,24 @@ on:
     - cron: "0 */6 * * *"   # every 6 hours
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   update:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Setup Node
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
       - name: Install dependencies
-  run: npm install node-fetch cheerio
+        run: npm install node-fetch cheerio
 
       - name: Run fetch script
         run: node fetch-stars.js
@@ -29,4 +34,3 @@ jobs:
           git add stars.json
           git commit -m "Update stars" || echo "No changes"
           git push
-
