@@ -1,1 +1,32 @@
+name: Update Chadsoft Stars
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # every 6 hours
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install node-fetch
+
+      - name: Run fetch script
+        run: node fetch-stars.js
+
+      - name: Commit stars.json
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add stars.json
+          git commit -m "Update stars" || echo "No changes"
+          git push
 
