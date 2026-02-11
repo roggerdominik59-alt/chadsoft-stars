@@ -13,18 +13,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
       - name: Install dependencies
-        run: npm install node-fetch cheerio
+        run: npm install cheerio
 
-      - name: Run fetch script
+      - name: Run script
         run: node fetch-stars.js
 
       - name: Commit stars.json
