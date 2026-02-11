@@ -2,51 +2,43 @@ const https = require("https");
 const fs = require("fs");
 
 const PLAYER_ID = "3FFF48F12DC77C5E"; // your player id
+const API_URL = `https://chadsoft.co.uk/players/${PLAYER_ID}.json`;
 
-const options = {
-  hostname: "tt.chadsoft.co.uk",
-  path: `/players/${PLAYER_ID.substring(0, 2)}/${PLAYER_ID}.json`,
-  method: "GET",
-};
-
-https.get(options, (res) => {
+https.get(API_URL, (res) => {
   let data = "";
 
-  res.on("data", (chunk) => {
-    data += chunk;
-  });
+  res.on("data", chunk => data += chunk);
 
   res.on("end", () => {
     try {
-      // remove BOM if present
+      // Remove invisible BOM if present
       data = data.replace(/^\uFEFF/, "");
 
       const json = JSON.parse(data);
 
-      if (!json.ghosts) {
+      if (!json.ghosts || json.ghosts.length === 0) {
         console.log("No ghosts found.");
         return;
       }
 
-      const bestGhosts = json.ghosts
-        .filter(g => g.playersFastest === true)
-        .map(g => ({
-          track: g.trackName,
-          time: g.finishTimeSimple,
-          date: g.dateSet,
-          download: `https://tt.chadsoft.co.uk${g.href}`
-        }));
+      // Keep only fastest ghost per track
+      const bestGhosts = json.ghosts.filter(g => g.playersFastest === true);
 
-      fs.writeFileSync("ghosts.json", JSON.stringify(bestGhosts, null, 2));
+      const output = bestGhosts.map(g => ({
+        track: g.trackName,
+        time: g.finishTimeSimple,
+        date: g.dateSet.split("T")[0],
+        download: "https://chadsoft.co.uk" + g.href
+      }));
 
-      console.log("✅ ghosts.json created!");
-      console.log(bestGhosts);
+      fs.writeFileSync("ghosts.json", JSON.stringify(output, null, 2));
 
+      console.log("Saved", output.length, "best ghosts.");
     } catch (err) {
-      console.error("JSON Parse Error:", err);
+      console.error("Parse error:", err);
     }
   });
 
-}).on("error", (err) => {
+}).on("error", err => {
   console.error("Request error:", err);
 });
