@@ -1,42 +1,58 @@
-// fetch-ghosts.js
-// Node 20+ (GitHub Actions compatible)
-
+const https = require("https");
 const fs = require("fs");
 
-const PLAYER_URL =
-  "https://chadsoft.co.uk/time-trials/players/3F/FF48F12DC77C5E.html"; // <-- your player page
+const PLAYER_ID = "3FFF48F12DC77C5E"; // your player id
+const API_URL = `https://tt.chadsoft.co.uk/players/${PLAYER_ID}.json`;
 
-async function run() {
-  try {
-    const response = await fetch(PLAYER_URL);
-    const html = await response.text();
+https.get(API_URL, (res) => {
+  let data = "";
 
-    // Find ALL ghost download links
-    const ghostRegex = /href="(\/ghostdownload\/[^"]+)"/g;
+  res.on("data", chunk => {
+    data += chunk;
+  });
 
-    const ghosts = [];
-    let match;
+  res.on("end", () => {
+    try {
+      // remove possible BOM
+      data = data.replace(/^\uFEFF/, "");
 
-    while ((match = ghostRegex.exec(html)) !== null) {
-      ghosts.push({
-        download: "https://chadsoft.co.uk" + match[1]
+      const json = JSON.parse(data);
+
+      if (!json.ghosts) {
+        console.log("No ghosts found in response.");
+        return;
+      }
+
+      const bestPerTrack = {};
+
+      json.ghosts.forEach(ghost => {
+        const track = ghost.trackName;
+
+        if (!bestPerTrack[track]) {
+          bestPerTrack[track] = ghost;
+        } else {
+          // compare times
+          if (ghost.finishTime < bestPerTrack[track].finishTime) {
+            bestPerTrack[track] = ghost;
+          }
+        }
       });
+
+      const result = Object.values(bestPerTrack).map(g => ({
+        track: g.trackName,
+        time: g.finishTimeSimple,
+        date: g.dateSet.split("T")[0],
+        download: `https://tt.chadsoft.co.uk${g.href}`
+      }));
+
+      fs.writeFileSync("ghosts.json", JSON.stringify(result, null, 2));
+
+      console.log("Saved", result.length, "best ghosts.");
+    } catch (err) {
+      console.error("Parse error:", err);
     }
+  });
 
-    // Remove duplicates
-    const uniqueGhosts = [...new Map(ghosts.map(g => [g.download, g])).values()];
-
-    console.log("Found ghosts:", uniqueGhosts.length);
-
-    fs.writeFileSync(
-      "ghosts.json",
-      JSON.stringify(uniqueGhosts, null, 2)
-    );
-
-    console.log("ghosts.json updated!");
-  } catch (err) {
-    console.error("Error:", err);
-  }
-}
-
-run();
+}).on("error", (err) => {
+  console.error("Request error:", err);
+});
