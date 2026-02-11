@@ -2,7 +2,7 @@ name: Update Chadsoft Stars
 
 on:
   schedule:
-    - cron: "0 */6 * * *"   # every 6 hours
+    - cron: "0 */6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -13,16 +13,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 18
 
       - name: Install dependencies
-        run: npm install cheerio
+        run: npm install cheerio@1.0.0-rc.12
 
       - name: Run script
         run: node fetch-stars.js
