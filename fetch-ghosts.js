@@ -2,57 +2,65 @@ const https = require("https");
 const fs = require("fs");
 
 const PLAYER_ID = "3FFF48F12DC77C5E"; // your player id
-const API_URL = `https://tt.chadsoft.co.uk/players/${PLAYER_ID}.json`;
+const URL = `https://tt.chadsoft.co.uk/players/${PLAYER_ID.substring(0,2)}/${PLAYER_ID}.json`;
 
-https.get(API_URL, (res) => {
-  let data = "";
+https.get(URL, (res) => {
+    let data = "";
 
-  res.on("data", chunk => {
-    data += chunk;
-  });
+    res.on("data", chunk => {
+        data += chunk;
+    });
 
-  res.on("end", () => {
-    try {
-      // remove possible BOM
-      data = data.replace(/^\uFEFF/, "");
+    res.on("end", () => {
+        try {
+            // Remove BOM if present
+            data = data.replace(/^\uFEFF/, "");
 
-      const json = JSON.parse(data);
+            const json = JSON.parse(data);
 
-      if (!json.ghosts) {
-        console.log("No ghosts found in response.");
-        return;
-      }
+            if (!json.ghosts || json.ghosts.length === 0) {
+                console.log("No ghosts found.");
+                fs.writeFileSync("ghosts.json", "[]");
+                return;
+            }
 
-      const bestPerTrack = {};
+            const bestPerTrack = {};
 
-      json.ghosts.forEach(ghost => {
-        const track = ghost.trackName;
+            json.ghosts.forEach(ghost => {
+                const track = ghost.trackName;
 
-        if (!bestPerTrack[track]) {
-          bestPerTrack[track] = ghost;
-        } else {
-          // compare times
-          if (ghost.finishTime < bestPerTrack[track].finishTime) {
-            bestPerTrack[track] = ghost;
-          }
+                // Always compare by numeric finishTime
+                const time = parseFloat(ghost.finishTime);
+
+                if (!bestPerTrack[track] || time < bestPerTrack[track].time) {
+                    bestPerTrack[track] = {
+                        track: track,
+                        time: ghost.finishTimeSimple,
+                        date: ghost.dateSet.split("T")[0],
+                        download: "https://tt.chadsoft.co.uk" + ghost.href,
+                        timeRaw: time
+                    };
+                }
+            });
+
+            const result = Object.values(bestPerTrack)
+                .sort((a, b) => a.track.localeCompare(b.track))
+                .map(g => ({
+                    track: g.track,
+                    time: g.time,
+                    date: g.date,
+                    download: g.download
+                }));
+
+            fs.writeFileSync("ghosts.json", JSON.stringify(result, null, 2));
+            console.log("Saved", result.length, "best ghosts.");
+
+        } catch (err) {
+            console.error("JSON parse error:", err);
+            console.log(data.substring(0, 200));
         }
-      });
+    });
 
-      const result = Object.values(bestPerTrack).map(g => ({
-        track: g.trackName,
-        time: g.finishTimeSimple,
-        date: g.dateSet.split("T")[0],
-        download: `https://tt.chadsoft.co.uk${g.href}`
-      }));
-
-      fs.writeFileSync("ghosts.json", JSON.stringify(result, null, 2));
-
-      console.log("Saved", result.length, "best ghosts.");
-    } catch (err) {
-      console.error("Parse error:", err);
-    }
-  });
-
-}).on("error", (err) => {
-  console.error("Request error:", err);
+}).on("error", err => {
+    console.error("Request error:", err);
 });
