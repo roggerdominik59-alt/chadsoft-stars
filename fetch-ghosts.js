@@ -1,11 +1,9 @@
 const fs = require("fs");
-const fetch = require("node-fetch");
 const cheerio = require("cheerio");
 
 const PLAYER_URL = "https://chadsoft.co.uk/time-trials/players/3F/FF48F12DC77C5E.html";
 
 async function scrape() {
-
     const res = await fetch(PLAYER_URL);
     const html = await res.text();
     const $ = cheerio.load(html);
@@ -21,7 +19,7 @@ async function scrape() {
         const date = $(tds[2]).text().trim();
         const link = $(tds[3]).find("a").attr("href");
 
-        if(track && link){
+        if (track && link) {
             ghosts.push({
                 track,
                 time,
@@ -32,6 +30,10 @@ async function scrape() {
     });
 
     fs.writeFileSync("ghosts.json", JSON.stringify(ghosts, null, 2));
+    console.log("Ghosts updated:", ghosts.length);
 }
 
-scrape();
+scrape().catch(err => {
+    console.error("Scrape failed:", err);
+    process.exit(1);
+});
