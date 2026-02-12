@@ -1,7 +1,8 @@
 {
+  "version": 2,
   "functions": {
-    "api/*.js": {
-      "runtime": "nodejs20.x"
+    "api/mii.js": {
+      "runtime": "@vercel/node@3.0.0"
     }
   }
 }
