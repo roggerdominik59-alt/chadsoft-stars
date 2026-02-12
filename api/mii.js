@@ -1,74 +1,101 @@
-export default async function handler(req, res) {
-  const fc = req.query.fc;
+const https = require("https");
 
-  if (!fc) {
-    return res.status(400).json({ error: "Missing friend code" });
-  }
+function fetchJSON(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, { headers: { "User-Agent": "Mozilla/5.0" } }, (res) => {
+      let data = "";
+      res.on("data", (c) => (data += c));
+      res.on("end", () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch {
+          reject("Invalid JSON");
+        }
+      });
+    }).on("error", reject);
+  });
+}
 
-  try {
-    // Convert FC to PID
-    const clean = fc.replace(/-/g, "");
-    const big = BigInt(clean);
-    const pid = Number(big & 0xffffffffn);
-
-    // SOAP XML
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="http://gamespy.net/sake">
-  <SOAP-ENV:Body>
-    <ns1:SearchForRecords>
-      <ns1:gameid>1687</ns1:gameid>
-      <ns1:secretKey>9Rmy</ns1:secretKey>
-      <ns1:loginTicket>23c715d620f986c22Pwwii</ns1:loginTicket>
-      <ns1:tableid>FriendInfo</ns1:tableid>
-      <ns1:filter>ownerid=${pid}</ns1:filter>
-      <ns1:sort>recordid</ns1:sort>
-      <ns1:offset>0</ns1:offset>
-      <ns1:max>1</ns1:max>
-      <ns1:surrounding>0</ns1:surrounding>
-      <ns1:ownerids></ns1:ownerids>
-      <ns1:cacheFlag>0</ns1:cacheFlag>
-      <ns1:fields>
-        <ns1:string>info</ns1:string>
-      </ns1:fields>
-    </ns1:SearchForRecords>
-  </SOAP-ENV:Body>
+function fetchMii(pid) {
+  return new Promise((resolve) => {
+    const soap = `<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+<SOAP-ENV:Body>
+<SearchForRecords xmlns="http://gamespy.net/sake">
+<gameid>1687</gameid>
+<secretKey>9Rmy</secretKey>
+<loginTicket>23c715d620f986c22Pwwii</loginTicket>
+<tableid>FriendInfo</tableid>
+<filter>ownerid=${pid}</filter>
+<fields><string>info</string></fields>
+</SearchForRecords>
+</SOAP-ENV:Body>
 </SOAP-ENV:Envelope>`;
 
-    const response = await fetch(
-      "http://mariokartwii.sake.gs.wiimmfi.de/SakeStorageServer/StorageServer.asmx",
-      {
-        method: "POST",
-        headers: {
-          "User-Agent": "GameSpyHTTP/1.0",
-          "Content-Type": "text/xml",
-          "SOAPAction": "http://gamespy.net/sake/SearchForRecords"
-        },
-        body: xml
+    const req = https.request({
+      hostname: "mariokartwii.sake.gs.wiimmfi.de",
+      path: "/SakeStorageServer/StorageServer.asmx",
+      method: "POST",
+      headers: {
+        "Content-Type": "text/xml",
+        "SOAPAction": "http://gamespy.net/sake/SearchForRecords",
+        "User-Agent": "GameSpyHTTP/1.0"
       }
-    );
+    }, (res) => {
+      let data = "";
+      res.on("data", (c) => (data += c));
+      res.on("end", () => {
+        const match = data.match(/<value>(.*?)<\/value>/);
+        resolve(match ? match[1] : null);
+      });
+    });
 
-    const text = await response.text();
+    req.write(soap);
+    req.end();
+  });
+}
 
-    const match = text.match(/<value>(.*?)<\/value>/);
+module.exports = async (req, res) => {
+  try {
+    const fc = req.query.fc;
 
-    if (!match) {
-      return res.status(404).json({ error: "Mii not found" });
+    if (!fc) {
+      return res.status(400).json({ error: "Missing friend code" });
     }
 
-    const base64 = match[1];
+    const clean = fc.replace(/-/g, "");
 
+    // 1️⃣ Get PID from Wiimmfi
+    const player = await fetchJSON(
+      `https://wiimmfi.de/api/player/${clean}`
+    );
+
+    if (!player || !player.pid) {
+      return res.status(404).json({ error: "FC not found" });
+    }
+
+    const pid = player.pid;
+
+    // 2️⃣ Get base64 Mii
+    const base64 = await fetchMii(pid);
+
+    if (!base64) {
+      return res.status(404).json({ error: "No Mii found" });
+    }
+
+    // 3️⃣ Build render URL
     const renderUrl =
-      "https://mii-unsecure.ariankordi.net/miis/image.png?data=" +
+      `https://mii-unsecure.ariankordi.net/miis/image.png?data=` +
       encodeURIComponent(base64) +
-      "&type=all_body_sugar&width=512&shaderType=wiiu_blinn";
+      `&type=all_body_sugar&width=512&shaderType=wiiu_blinn`;
 
     res.status(200).json({
-      friend_code: fc,
+      fc,
       pid,
-      mii_base64: base64,
-      mii_full_body: renderUrl
+      image: renderUrl
     });
+
   } catch (err) {
-    res.status(500).json({ error: "Server error", details: err.message });
+    res.status(500).json({ error: "Server error" });
   }
-}
+};
