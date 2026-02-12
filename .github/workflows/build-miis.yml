@@ -1,0 +1,39 @@
+name: Build Miis From Leaderboards
+
+on:
+  workflow_dispatch:   # manual run button
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "0 */6 * * *"   # every 6 hours (optional)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Create data folder if missing
+        run: mkdir -p data
+
+      - name: Run Mii builder script
+        run: node scripts/build-miis-from-leaderboard.js
+
+      - name: Commit and push updated JSON
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add data/miis.json
+          git commit -m "Auto update miis.json" || echo "No changes to commit"
+          git push
