@@ -7,14 +7,11 @@ function fetchJSON(url) {
       let data = "";
 
       res.on("data", (chunk) => (data += chunk));
-
       res.on("end", () => {
         try {
-          const parsed = JSON.parse(data);
-          resolve(parsed);
+          resolve(JSON.parse(data));
         } catch (err) {
           console.error("Invalid JSON from:", url);
-          console.error(data.substring(0, 500));
           reject(err);
         }
       });
@@ -67,7 +64,6 @@ function fetchMii(pid) {
     });
 
     req.on("error", () => resolve(null));
-
     req.write(soap);
     req.end();
   });
@@ -94,7 +90,9 @@ async function build() {
 
       if (data && data.times) {
         data.times.forEach((entry) => {
-          if (entry.pid) pids.add(entry.pid);
+          if (entry.playerId) {
+            pids.add(entry.playerId); // THIS is the real PID
+          }
         });
       }
 
@@ -103,6 +101,8 @@ async function build() {
       console.log("Skipping track", track);
     }
   }
+
+  console.log("Total PIDs found:", pids.size);
 
   const result = {};
 
