@@ -1,0 +1,27 @@
+name: Build Mii API
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: mkdir -p data
+      - run: node scripts/build-miis.js
+
+      - name: Commit JSON
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add data/miis.json
+          git commit -m "Update Mii API" || echo "No changes"
+          git push
