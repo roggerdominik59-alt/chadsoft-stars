@@ -1,5 +1,5 @@
 {
-  "name": "ctgp-mii-fetcher",
+  "name": "mkw-mii-api",
   "version": "1.0.0",
-  "type": "commonjs"
+  "type": "module"
 }
