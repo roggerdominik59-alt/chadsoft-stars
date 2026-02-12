@@ -1,12 +1,10 @@
 name: Build Miis From Leaderboards
 
 on:
-  workflow_dispatch:   # manual run button
+  workflow_dispatch:
   push:
     branches:
       - main
-  schedule:
-    - cron: "0 */6 * * *"   # every 6 hours (optional)
 
 jobs:
   build:
@@ -24,9 +22,6 @@ jobs:
         with:
           node-version: 20
 
-      - name: Create data folder if missing
-        run: mkdir -p data
-
       - name: Run Mii builder script
         run: node scripts/build-miis-from-leaderboard.js
 
@@ -35,5 +30,5 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add data/miis.json
-          git commit -m "Auto update miis.json" || echo "No changes to commit"
+          git commit -m "Auto update miis.json" || echo "No changes"
           git push
