@@ -16,29 +16,16 @@ const players = [
 ];
 
 async function scrapePlayer(player) {
-  console.log("Fetching JSON for:", player.name);
+  console.log("Fetching:", player.name);
 
   const res = await fetch(player.url);
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch JSON for " + player.name);
-  }
-
   const data = await res.json();
 
-  let bronze = 0;
-  let silver = 0;
-  let gold = 0;
-
-  if (data.timeTrials) {
-    data.timeTrials.forEach(trial => {
-      if (trial.medal === "Bronze") bronze++;
-      if (trial.medal === "Silver") silver++;
-      if (trial.medal === "Gold") gold++;
-    });
-  }
-
-  const result = { bronze, silver, gold };
+  const result = {
+    bronze: data.stars?.bronze || 0,
+    silver: data.stars?.silver || 0,
+    gold: data.stars?.gold || 0
+  };
 
   fs.writeFileSync(
     `${player.name}.json`,
@@ -55,6 +42,6 @@ async function run() {
 }
 
 run().catch(err => {
-  console.error("SCRAPER ERROR:", err);
+  console.error(err);
   process.exit(1);
 });
