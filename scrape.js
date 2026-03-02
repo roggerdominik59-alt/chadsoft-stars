@@ -24,7 +24,7 @@ async function scrapePlayer(player) {
   });
 
   if (!res.ok) {
-    throw new Error(`Failed to fetch ${player.name}`);
+    throw new Error("Failed to fetch " + player.url);
   }
 
   const html = await res.text();
@@ -35,11 +35,11 @@ async function scrapePlayer(player) {
   let gold = 0;
 
   $("img").each((i, el) => {
-    const src = ($(el).attr("src") || "").toLowerCase();
+    const alt = ($(el).attr("alt") || "").toLowerCase();
 
-    if (src.includes("bronze")) bronze++;
-    if (src.includes("silver")) silver++;
-    if (src.includes("gold")) gold++;
+    if (alt.includes("bronze")) bronze++;
+    if (alt.includes("silver")) silver++;
+    if (alt.includes("gold")) gold++;
   });
 
   const data = { bronze, silver, gold };
@@ -49,7 +49,7 @@ async function scrapePlayer(player) {
     JSON.stringify(data, null, 2)
   );
 
-  console.log(`${player.name} updated`, data);
+  console.log(player.name, data);
 }
 
 async function run() {
@@ -58,4 +58,7 @@ async function run() {
   }
 }
 
-run();
+run().catch(err => {
+  console.error("SCRAPER ERROR:", err);
+  process.exit(1);
+});
